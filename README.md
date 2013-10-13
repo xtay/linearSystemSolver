@@ -7,14 +7,20 @@
 
 ###compile and run###
 change directory into this dir, to complie the project, execute the following shell command
+```
     $ make
+```
 
 to run this program, first of all, you need to have a compressed matrix in file in "./data
 ", and a file contains the vector in directory "./data", then excute
+```
     $./main ./data/$(FILE_OF_MATRIX) ./data/$(FILE_OF_VECTOR)
+```
 
 or, modify the shell script "run.sh", and then excute
+```
     $. run.sh
+```
 
 ###files and directory###
 * **data**
