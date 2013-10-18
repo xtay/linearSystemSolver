@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$1" == "d" ];then
-    gdb ./main
+    mpirun -gdb -np $2 ./main
 else
-    ./main data/mat data/vec
+    mpirun -np $1 ./main data/mat data/vec
 fi

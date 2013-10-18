@@ -16,12 +16,12 @@ Change directory into this dir, to complie the project, execute the following sh
 To run this program, first of all, you need to have a compressed matrix in file in "./data
 ", and a file contains the vector in directory "./data", then excute
 ```
-    $./main ./data/<yourMatrixFile> ./data/<yourVectorFile>
+    $mpirun -np <number of processes> ./main ./data/<yourMatrixFile> ./data/<yourVectorFile>
 ```
 
 Or, modify the shell script "run.sh", and then excute
 ```
-    $. run.sh
+    $. run.sh <number of processes>
 ```
 
 ###Files and directory###
