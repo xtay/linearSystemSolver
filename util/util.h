@@ -15,6 +15,7 @@ two kinds of features should be metioned here
   status tag definitions
   "LSS" stands for linear system solver
 **************************/
+#include <mpi.h>
 
 #define LSS_FILE_DATA_LENGTH 10
 
@@ -29,6 +30,18 @@ two kinds of features should be metioned here
 #define NEW_SPACE 1
 #define OLD_SPACE 0
 
+//something for parallel implementation
+#define BLOCK_BASE(id, p, n) ((id)*(n)/(p))
+#define BLOCK_SIZE(id, p, n) (BLOCK_BASE((id)+1, p, n) - BLOCK_BASE(id, p, n))
+#define BLOCK_OWNER(index, p, n) (((p)*(index+1)-1)/(n))
+
+#define DATA_READ_TAG 2000
+#define DATA_PRINT_TOKEN 3000
+#define DATA_TRANSFER_TAG 4000
+#define DATA_RETRIEVE_TAG 5000
+
+#define USLEEP_TIME 0
+
 /**************************
   some data structures
 **************************/
@@ -39,12 +52,23 @@ typedef struct generalVector{
 }gVector;
 
 typedef struct compressedMatrix{
-    //a bunch of pointer pointed at each row of the matrix
+    //a bunch of gVectors for each row of the matrix
     gVector *Lines;
     //size of the matrix;
     int nRows, nCols;
+    int halfBandWidth;
 }cMatrix;
 
+typedef struct matrix_vector_product_env{
+    int idMin;
+    int idMax;
+    int local_length;
+    int remote_length;
+    double *remote_array;
+    double *remote_resArray;
+    double *resBuffer;
+    MPI_Request *sendRequest;
+}mvpEnv;
 /**************************
 memory management
 **************************/
@@ -83,7 +107,9 @@ int print_gVector(gVector*);
 basic calculation
 **************************/
 //a tag is used to tell the function to allocated space for the array or not
-int matrix_vector_product(cMatrix* cMat, gVector* gVec, gVector* res, int tag);
+int set_mvp_env(mvpEnv *env, int halfBandWidth, int length);
+int free_mvp_env(mvpEnv *);
+int matrix_vector_product(cMatrix* cMat, gVector* gVec, gVector* res, int tag, mvpEnv *);
 // a vector space will be allocated within this function
 int inner_product(gVector* pVec1, gVector* pVec2, double* res);
 

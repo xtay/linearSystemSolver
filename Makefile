@@ -1,6 +1,6 @@
 #Makefile
 
-CC =gcc
+CC=mpicc
 LIB=-lm
 FLAG=-g
 
