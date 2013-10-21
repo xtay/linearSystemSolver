@@ -106,6 +106,7 @@ int fread_cMatrix(FILE* fptr, cMatrix* pMat)
     }
 
     if(id == (nProc - 1)){
+        halfBandWidth = 0;
         
         tmpStr = (char *)malloc(sizeof(char) * nRows * LSS_FILE_DATA_LENGTH);
 
