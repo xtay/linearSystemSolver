@@ -1,5 +1,4 @@
 #BiCGSTAB - a sparse linear system solver
-============================
 ###Basic idea###
 **BiCGSTAB** is short for biconjugate gradient stabilized method, more details of this algorithm, see <http://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method>
 
