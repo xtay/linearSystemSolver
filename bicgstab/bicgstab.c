@@ -4,7 +4,8 @@
 #include <mpi.h>
 #include "../util/util.h"
 
-#define PRECISION 0.0000001
+#define PRECISION 0.001
+#define ITERATION_LIMIT 4848
 
 //to know what are these variables stands for, see wiki page for "bicgstab"
 int bicgstab_solver(cMatrix *pA, gVector *pb, gVector *px)
@@ -121,7 +122,8 @@ int bicgstab_solver(cMatrix *pA, gVector *pb, gVector *px)
     inner_product(&rVec, &rVec, &residualNorm);
     residualNorm = sqrt(residualNorm);
 
-    while(residualNorm > PRECISION && i < 6){
+    while(residualNorm > PRECISION && i < ITERATION_LIMIT){
+//        if(id == 1) printf("iteration: %d\n", i);
 
         inner_product(&rcVec, &rVec, &rhoNew);
         beta = (rhoNew/rho)*(alpha/omega);
@@ -131,6 +133,8 @@ int bicgstab_solver(cMatrix *pA, gVector *pb, gVector *px)
             p_Array[k] = rArray[k] + beta * (p_Array[k] - omega * vArray[k]);
             k++;
         }
+//        if(id == 0) printf("p:\n");
+//        print_gVector(&p_Vec);
 
         matrix_vector_product(pA, &p_Vec, &vVec, OLD_SPACE, &env);
 
@@ -175,8 +179,13 @@ int bicgstab_solver(cMatrix *pA, gVector *pb, gVector *px)
     free(tmpArray);
 
     if(i == 100){
-        printf("Failed: cannot get it solved within ITERATION LIMITATION\n");
+        if(id == 0) printf("Failed: cannot get it solved within ITERATION LIMITATION\n");
+        if(id == 0) printf("iteration times: %d\n residualNorm: %lf\n", i, residualNorm);
         return LSS_ERR_ITER;
+    }
+    else{
+        if(id == 0)
+            if(id == 0) printf("iteration times: %d\n residualNorm: %lf\n", i, residualNorm);
     }
 
     return LSS_SUCCESS;

@@ -99,13 +99,14 @@ int fread_cMatrix(FILE* fptr, cMatrix* pMat)
     }
 
     //read in the elements of the matrix
-    tmpData = (double *)malloc(sizeof(double)*nRows);
+    tmpData = (double *)malloc(sizeof(double)*(nRows+1));
     if(tmpData == NULL){
         printf("unable to allocate memory for Lines and temp spaces, proc %d\n", id);
         return LSS_ERR_MEM;
     }
 
     if(id == (nProc - 1)){
+        halfBandWidth = 0;
         
         tmpStr = (char *)malloc(sizeof(char) * nRows * LSS_FILE_DATA_LENGTH);
 
@@ -136,10 +137,10 @@ int fread_cMatrix(FILE* fptr, cMatrix* pMat)
 
                     j++;
                 }
-                tmpData[0] = j - 1; 
+                tmpData[0] = j - 1;//one for the first tmpData space
 
                 if(j-1 > nCols - BLOCK_BASE(i, nProc, nRows) - k){ //(nCols - i) is the number of elements that current compressed line could contain.
-                    printf("Irregular matrix, exit!, proc %d, row %d\n", id, k);
+                    printf("Irregular matrix, exit!, proc %d, row %d, nElems %d\n", i, BLOCK_BASE(i, nProc, nRows)+k, j-1);
                     return LSS_ERR_INPUT;
                 }
 
@@ -169,8 +170,8 @@ int fread_cMatrix(FILE* fptr, cMatrix* pMat)
                 j++;
             }
 
-            if(j > nCols - BLOCK_BASE(i, nProc, nRows) - k){ //(nCols - i) is the number of elements that current compressed line could contain.
-                printf("Irregular matrix, exit!, proc %d, row %d\n", id, k);
+            if(j-1 > nCols - BLOCK_BASE(i, nProc, nRows) - k){ //(nCols - i) is the number of elements that current compressed line could contain.
+                printf("Irregular matrix, exit!, proc %d, row %d, nElems %d\n", i, BLOCK_BASE(i, nProc, nRows)+k, j-1);
                 return LSS_ERR_INPUT;
             }
             
@@ -190,7 +191,7 @@ int fread_cMatrix(FILE* fptr, cMatrix* pMat)
         l = local_rows;
         k = 0;
         while(k < l){
-            MPI_Recv(tmpData, nRows, MPI_DOUBLE, nProc-1, DATA_READ_TAG + k, MPI_COMM_WORLD, &status);
+            MPI_Recv(tmpData, nRows+1, MPI_DOUBLE, nProc-1, DATA_READ_TAG + k, MPI_COMM_WORLD, &status);
             j = tmpData[0];
             Lines[k].length = j;
             Lines[k].array = malloc(sizeof(double)*j);
@@ -426,6 +427,7 @@ int print_gVector(gVector* pVec)
 
     local_length = BLOCK_SIZE(id, nProc, length);
 
+
     if(id > 0)
         MPI_Recv(&print_token, 1, MPI_INT, id-1, DATA_PRINT_TOKEN, MPI_COMM_WORLD, &status);
 
@@ -433,7 +435,7 @@ int print_gVector(gVector* pVec)
     fflush(stdout);
     i = 0;
     while(i < local_length){
-        printf("%10.3f", array[i]);
+        printf("%10.3lf, ", array[i]);
         i++;
     }
     fflush(stdout);
@@ -489,7 +491,7 @@ int free_mvp_env(mvpEnv *env){
     free(env->remote_array);
     free(env->remote_resArray);
     free(env->resBuffer);
-    free(env->sendRequest);
+    //free(env->sendRequest);
     return LSS_SUCCESS;
 }
 int matrix_vector_product(cMatrix* pMat, gVector* pVec, gVector* res, int tag, mvpEnv *env)
@@ -558,15 +560,18 @@ int matrix_vector_product(cMatrix* pMat, gVector* pVec, gVector* res, int tag, m
     resBuffer = env->resBuffer;
     sendRequest = env->sendRequest;
 
+
     memset(remote_resArray, '\0', remote_length*sizeof(double));
 
-    if(tag)
+    if(tag){
         local_resArray = (double *)calloc(local_length, sizeof(double));
+    }
     else{
         local_resArray = res->array;
         memset(local_resArray, '\0', local_length*sizeof(double));
     }
     //retrieve part of the vector which is nesscery to perform a local calculation
+
     while(idMin < id){
         target = idMin<0 ? MPI_PROC_NULL : idMin;
         MPI_Isend(arrayInVec, local_length, MPI_DOUBLE, target, DATA_TRANSFER_TAG, MPI_COMM_WORLD, sendRequest+id-idMin);
@@ -618,6 +623,7 @@ int matrix_vector_product(cMatrix* pMat, gVector* pVec, gVector* res, int tag, m
         i++;
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
 
     //exchange the answers
     idMin = BLOCK_OWNER(BLOCK_BASE(id, nProc, length) - halfBandWidth + 1, nProc, length);
@@ -632,19 +638,22 @@ int matrix_vector_product(cMatrix* pMat, gVector* pVec, gVector* res, int tag, m
     while(idMin < id){
         target = idMin<0 ? MPI_PROC_NULL : idMin;
         MPI_Recv(resBuffer, local_length, MPI_DOUBLE, target, DATA_TRANSFER_TAG, MPI_COMM_WORLD, &status);
-        i = 0;
-        while(i < local_length){
-            local_resArray[i] += resBuffer[i];
-            //printf("id%d, i%d, val%lf\n", id, i, resArray[i]);
-            i++;
+        if(target != MPI_PROC_NULL){
+            i = 0;
+            while(i < local_length){
+                local_resArray[i] += resBuffer[i];
+                //printf("id%d, i%d, val%lf\n", id, i, resArray[i]);
+                i++;
+            }
         }
         idMin++;
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
 
     res->length = nCols;
     res->array = local_resArray;
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     return LSS_SUCCESS;
 }
